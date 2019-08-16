@@ -1,0 +1,27 @@
+{
+  "name": "alarm_clock",
+  "version": "1.0.0",
+  "description": "",
+  "main": "resources/main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "clean": "rm -rf resources/public/cljs-runtime resources/**.js",
+    "start": "shadow-cljs watch main renderer",
+    "build": "npm run clean && shadow-cljs release main renderer && electron-packager . alarm --platform=linux --overwrite"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "bootstrap": "^4.3.1",
+    "create-react-class": "^15.6.3",
+    "react": "^16.9.0",
+    "react-dom": "^16.9.0",
+    "react-flip-move": "^3.0.3",
+    "react-highlight.js": "^1.0.7"
+  },
+  "devDependencies": {
+    "electron": "^6.0.2",
+    "electron-packager": "^14.0.4",
+    "shadow-cljs": "^2.8.47"
+  }
+}

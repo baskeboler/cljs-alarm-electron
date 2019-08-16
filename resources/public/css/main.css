@@ -1,0 +1,17 @@
+body {
+    background: url("../images/white-wood.jpg");
+    min-height: 100vh;
+}
+.app-component {
+    display: flex;
+    /* margin-top: 1em; */
+    align-items: center;
+    justify-content: space-around;
+    border: 1px solid grey;
+    padding: 1em;
+    border-radius: 1em;
+}
+.time-component {
+
+    /* font-size: 4em; */
+}
