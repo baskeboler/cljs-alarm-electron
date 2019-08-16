@@ -22,7 +22,7 @@
                                       :autoHideMenu true}})))
   (.loadURL ^js @main-window (str "file://" js/__dirname "/public/index.html"))
   (.on ^js @main-window "closed" #(reset! main-window nil))
-  (.show (notify-launch)))
+  (notify-launch))
   ;; (let [tray (Tray. (str "file://" js/__dirname "/public/images/icon.ico"))]
     ;; (. tray (setTooltip "Alarm app"))))
     

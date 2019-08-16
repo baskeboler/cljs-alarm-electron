@@ -2,7 +2,7 @@
   (:require [re-frame.core :as rf]
             [goog.date :as gdate :refer [DateTime]]))
 
-(defn- current-time []
+(defn current-time []
   (let [dt (DateTime.)]
     (+ (* 100 (. dt (getHours))) (. dt (getMinutes)))))
 
@@ -54,7 +54,17 @@
 (rf/reg-sub
  ::next-alarm
  :<- [::enabled-alarms]
- (fn [alarms _]
-   (let [sorted (sort-by :alarm-time alarms)
-         filtered (filter #(> (:alarm-time %) (current-time)) sorted)]
-     (first filtered))))
+ :<- [::hours]
+ :<- [::minutes]
+ :<- [::seconds]
+ (fn [[alarms hours minutes seconds] _]
+   (let [current-time (+ (* hours 100) minutes)
+         sorted (sort-by :alarm-time alarms)
+         filtered (filterv #(> (:alarm-time %) current-time) sorted)]
+     (if-not (empty? filtered)
+       (first filtered)
+       (first sorted)))))
+
+(rf/reg-sub
+ ::alarm-triggered?
+ (fn [db _] (:alarm-triggered? db)))

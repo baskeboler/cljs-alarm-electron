@@ -12,8 +12,8 @@
             [thi.ng.geom.core :as geom]
             [thi.ng.geom.vector :as vecs]
             [thi.ng.geom.svg.core :as svg]
-            [thi.ng.geom.svg.adapter :as svg-adapter]))
-
+            [thi.ng.geom.svg.adapter :as svg-adapter]
+            [goog.dom :as gdom]))
 (defn create-alarm
   ([name alarm-time active?]
    {:id (random-uuid)
@@ -23,19 +23,86 @@
   ([name alarm-time]
    (create-alarm name alarm-time false)))
 
+(defn play-alarm []
+  (let [a (. js/document (querySelector "#alarm-audio"))]
+    (. a (play))))
+
 (defn notification [title body]
   (let [n (js/Notification. title)]))
+
+(defn should-trigger-alarm? [hours minutes seconds]
+  (let [next-trigger-time (:alarm-time @(rf/subscribe [::s/next-alarm]))
+        alarm-h (int (/ next-trigger-time 100))
+        alarm-m (mod next-trigger-time 100)]
+    (= [alarm-h alarm-m 0] [hours minutes seconds])))
 
 (go-loop [_ (<! (timeout 500))]
   (let [d (DateTime.)
         h (. d (getHours))
         m (. d (getMinutes))
         s (. d (getSeconds))]
-    (rf/dispatch [::events/set-time
-                  {:hours h
-                   :minutes m
-                   :seconds s}])
+    (when (should-trigger-alarm? h m s)
+      (println "triggering alarm!!")
+      (rf/dispatch-sync [::events/trigger-alarm]))
+    (rf/dispatch-sync [::events/set-time
+                       {:hours h
+                        :minutes m
+                        :seconds s}])
     (recur (<! (timeout 500)))))
+
+(defn next-alarm-panel []
+  [rc/v-box
+   :children
+   [[rc/title
+     :level :level2
+     :label "Next Alarm"]
+    (when-not (nil? @(rf/subscribe [::s/next-alarm]))
+      [rc/h-box
+       :gap "3px"
+       :children
+       [[rc/box
+         :size "auto"
+         :child [rc/label :label (:name @(rf/subscribe [::s/next-alarm]))]]
+        [rc/box
+         :size "auto"
+         :child [rc/line :size "3px" :color "red"]]
+        [rc/box
+         :size "auto"
+         :child [rc/label :label (:alarm-time @(rf/subscribe [::s/next-alarm]))]]]])
+    (when (nil? @(rf/subscribe [::s/next-alarm]))
+      [rc/box
+       :size "auto"
+       :child [rc/title
+               :level :level3
+               :label "No pending alarms"]])]])
+
+(defn alarm-triggered-panel []
+  [rc/v-box
+   :gap "5px"
+   :children [[rc/box
+               :size "auto"
+               :child [rc/title
+                       :label "Alarm Triggered!"
+                       :level :level1]]
+              [rc/box
+               :size "auto"
+               :height "200px"
+               :max-height "200px"
+               :child [:div {:style {:width "100%"
+                                     :height "100%"
+                                     :background "url(images/alarm.png) no-repeat"
+                                     :background-size :contain
+                                     :background-position :center}
+                             :height "100%"}]]
+              [rc/button
+               :label "Dismiss"
+               :class "btn-primary btn-block"
+               :on-click #(rf/dispatch [::events/stop-triggered-alarm])]]])
+
+(defn alarm-modal []
+  (when @(rf/subscribe [::s/alarm-triggered?])
+    [rc/modal-panel
+      :child [alarm-triggered-panel]]))
 
 (defn new-alarm-panel []
   (let [name       (atom "")
@@ -87,23 +154,22 @@
          [0 (* -1 thickness)]
          [length 0]])))
 
- 
-(defn alarm-row [a over?]         
+(defn alarm-row [a over?]
   [:tr {:on-mouse-over #(reset! over? true)
-        :on-mouse-out #(reset! over? false)}
-   [:td [rc/checkbox :model (:active? a) :on-change identity]]
+        :on-mouse-out  #(reset! over? false)}
+   [:td [rc/checkbox :model (:active? a) :on-change #(rf/dispatch [::events/toggle-activated-alarm (:id a)])]]
    [:td (:name a)]
    [:td (let [t (:alarm-time a)
               h (int (/ t 100))
               m (mod t 100)]
           (str h ":" m))]
-   [:td [rc/row-button :md-icon-name "zmdi-plus" :mouse-over-row? @over?]]])
+   [:td [rc/row-button :md-icon-name "zmdi-delete" :mouse-over-row? @over?]]])
 
 (defn alarms []
   [:table.table
    [:thead
     [:tr
-     [:th "Enabled"][:th "Name"] [:th "Time"] [:th "action"]]]
+     [:th "Enabled"] [:th "Name"] [:th "Time"] [:th "action"]]]
    [:tbody
     (doall
      (for [[i a] (map-indexed vector @(rf/subscribe [::s/alarms]))
@@ -179,32 +245,46 @@
 (defn app-component []
   [rc/v-box
    :align :center
-   :justify :around
-   :class "app-component container"
+   :justify :between
+   :class "app-component container mt-4"
    :style {:display          :flex
-           :background-color "rgba(255,255,255, 0.7)"}
+           :background-color "rgba(255,255,255, 0.8)"}
    :children
    [[modals]
-    [rc/button
-     :label "Create Alarm"
-     :on-click #(rf/dispatch [::events/push-modal [new-alarm-panel]])
-     :class "btn-outline-primary"]
+    [alarm-modal]
     [rc/h-box
+     :gap "2em"
+     :align :stretch
+     :justify :between
      :children
-     [[rc/box
-       :child [alarms]]
-      [rc/gap :size "1em"]
+     [[rc/v-box
+       :size "auto"
+       :children [[rc/button
+                   :label "Create Alarm"
+                   :on-click #(rf/dispatch [::events/push-modal [new-alarm-panel]])
+                   :class "btn-outline-primary btn-block my-5"]
+                  [alarms]
+                  [next-alarm-panel]]]
+      [rc/box
+       :size "auto"
+       :child [rc/line :size "3px" :color "red"]]
       [rc/v-box
+       :size "auto"
        :children
-       [[time-component (rf/subscribe [::s/time])]        
+       [[rc/box
+         :size "auto"
+         :justify :center
+         :align :center
+         :child [time-component (rf/subscribe [::s/time])]]
         (when-not (nil? (rf/subscribe [::s/time]))
           [rc/box
+           :size "auto"
            :child
            [:div.media
-             [clock 150
-              (rf/subscribe [::s/seconds])
-              (rf/subscribe [::s/minutes])
-              (rf/subscribe [::s/hours])]]])]]]]]])
+            [clock 150
+             (rf/subscribe [::s/seconds])
+             (rf/subscribe [::s/minutes])
+             (rf/subscribe [::s/hours])]]])]]]]]])
 
 (defn mount-components! []
   (reagent/render

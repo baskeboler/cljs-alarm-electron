@@ -2,12 +2,13 @@
   (:require [re-frame.core :as rf]
             [day8.re-frame.tracing]))
 (def initial-state
-  {:time   {:hours   0
-            :minutes 0
-            :seconds 0}
-   :ready? false
-   :modals []
-   :alarms []})
+  {:time             {:hours   0
+                      :minutes 0
+                      :seconds 0}
+   :alarm-triggered? false
+   :ready?           false
+   :modals           []
+   :alarms           []})
 
 (rf/reg-event-db
  ::init-state
@@ -47,3 +48,28 @@
  (fn [db [_ alarm]]
    (-> db
        (update :alarms conj alarm))))
+
+(rf/reg-event-db
+ ::toggle-activated-alarm
+ (fn [db [_ alarm-id]]
+   (-> db
+       (update :alarms (fn [alarms]
+                         (mapv #(if (= alarm-id (:id %))
+                                  (-> % (update :active? not))
+                                  %)
+                               alarms))))))
+
+(rf/reg-event-db
+ ::trigger-alarm
+ (rf/after
+  (fn [_ _]
+    (when-let [a (. js/document (querySelector "#alarm-audio"))]
+      (.play a))))
+ (fn [db _]
+   (-> db
+       (assoc :alarm-triggered? true))))
+
+(rf/reg-event-db
+ ::stop-triggered-alarm
+ (fn [db _]
+   (-> db (assoc :alarm-triggered? false))))
