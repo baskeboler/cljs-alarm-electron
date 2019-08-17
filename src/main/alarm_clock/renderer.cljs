@@ -229,11 +229,12 @@
                              {:key (str "gr_" i "_" j)})))
               ^{:key (str "min_" i)} (svg/as-svg (types/->Line2 [p1 p2])
                                                  {:key (str "min_" i)})
-              (svg/text (vecs/vec2 (* (:x p2) 1.1) (* (:y p2) 1.1))
+              (svg/text (vecs/vec2 (* (:x p2) 1.12) (* (:y p2) 1.12))
                         (mod (+ i 3) 12)
-                        {:transform-origin "0.5 0.5"
-                         :stroke-width    1
-                         :transform       "translate(-2 4)"
+                        {:transformorigin "0.5 0.5"
+                         :font-weight 100
+                         :stroke-width    0.5
+                         :transform       "translate(-6 4)"
                          :stroke          "red"
                          :key             (str "sec_text_" i)})))))
 (defn modals []
