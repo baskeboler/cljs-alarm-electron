@@ -7,13 +7,23 @@
             [re-frame.core :as rf]
             [alarm-clock.subs :as s]
             [alarm-clock.events :as events]
+            [alarm-clock.clock :as cl :refer [clock]]
+            [alarm-clock.timer]
+            [alarm-clock.protocols :as p]
+            [alarm-clock.svg :as mysvg]
             [thi.ng.geom.types :as types]
             [thi.ng.math.core :as math]
             [thi.ng.geom.core :as geom]
             [thi.ng.geom.vector :as vecs]
             [thi.ng.geom.svg.core :as svg]
             [thi.ng.geom.svg.adapter :as svg-adapter]
-            [goog.dom :as gdom]))
+            [goog.dom :as gdom]
+            [com.rpl.specter :as sp])
+            ;; [alarm-clock.macros :as m])
+ (:require-macros
+   [alarm-clock.macros :refer [svg-hiccup ELEMENTS]]))
+
+
 (defn create-alarm
   ([name alarm-time active?]
    {:id (random-uuid)
@@ -23,6 +33,9 @@
   ([name alarm-time]
    (create-alarm name alarm-time false)))
 
+(defn other-clock []
+  (svg-hiccup "resources/public/images/clock4.svg"))
+
 (defn play-alarm []
   (let [a (. js/document (querySelector "#alarm-audio"))]
     (. a (play))))
@@ -30,25 +43,7 @@
 (defn notification [title body]
   (let [n (js/Notification. title)]))
 
-(defn should-trigger-alarm? [hours minutes seconds]
-  (let [next-trigger-time (:alarm-time @(rf/subscribe [::s/next-alarm]))
-        alarm-h (int (/ next-trigger-time 100))
-        alarm-m (mod next-trigger-time 100)]
-    (= [alarm-h alarm-m 0] [hours minutes seconds])))
 
-(go-loop [_ (<! (timeout 500))]
-  (let [d (DateTime.)
-        h (. d (getHours))
-        m (. d (getMinutes))
-        s (. d (getSeconds))]
-    (when (should-trigger-alarm? h m s)
-      (println "triggering alarm!!")
-      (rf/dispatch-sync [::events/trigger-alarm]))
-    (rf/dispatch-sync [::events/set-time
-                       {:hours h
-                        :minutes m
-                        :seconds s}])
-    (recur (<! (timeout 500)))))
 
 (defn next-alarm-panel []
   [rc/v-box
@@ -141,18 +136,12 @@
 
 (defn time-component [time-atom]
   (when-let [{:keys [hours minutes seconds]} @time-atom]
-    (let [time-str (str  (number-str hours) ":" (number-str minutes) ":" (number-str seconds))]
+    (let [time-str (.toIsoTimeString ^js @time-atom)]
       [rc/title
        :class "time-component"
        :level :level1
        :label time-str])))
 
-(defn arm [length rot thickness]
-  (types/->Triangle2
-   (map (comp #(geom/rotate % rot) vecs/vec2)
-        [[0 thickness]
-         [0 (* -1 thickness)]
-         [length 0]])))
 
 (defn alarm-row [a over?]
   [:tr {:on-mouse-over #(reset! over? true)
@@ -176,67 +165,7 @@
            :let [over? (atom false)]]
        ^{:key (str "row_" i)} [alarm-row a over?]))]])
 
-(defn clock [radius seconds minutes hours]
-  (svg/svg {:viewBox      [(* -1 radius 1.2) (* -1 radius 1.2) (* radius 1.2 2) (* radius 1.2 2)]
-            :stroke       "black"
-            :stroke-width (/ radius 100)
-            :font-size    (/ radius 10)
-            :width        400
-            :height       400}
-           ;; (concat
-           (svg/as-svg (types/->Circle2 [0 0] (* radius 1.0250))
-                       {:fill "none"
-                        :key  "circle"})
-           (svg/as-svg
-            (arm (* radius 0.4)
-                 (+
-                  (* (mod (+  @hours 9) 12)
-                     math/SIXTH_PI)
-                  (* (/ math/SIXTH_PI 5)
-                     @minutes
-                     (/ 1 60)))
-                 (/ radius 50))
-            {:id     "hours"
-             :key    "hours"
-             :stroke "grey"
-             :fill   "darkgrey"})
-           (svg/as-svg
-            (arm (* 0.7 radius) (* (mod (+ @minutes 45) 60)
-                                   (/ math/SIXTH_PI 5))
-                 (/ radius 50))
-            {:id     "minutes"
-             :key    "minutes"
-             :stroke "grey"
-             :fill   "darkgrey"})
 
-           (svg/as-svg
-            (arm (* radius 0.9) (* (/ math/SIXTH_PI 5) (mod (+ @seconds 45) 60)) (/ radius 50))
-            {:id     "seconds"
-             :key    "seconds"
-             :stroke "grey"
-             :fill   "darkgrey"})
-           (for [[i r] (map-indexed vector (range 0 math/TWO_PI math/SIXTH_PI))
-                 :let  [p1 (geom/rotate (vecs/vec2 (* radius 0.9) 0) r)
-                        p2 (geom/rotate (vecs/vec2 radius 0) r)]]
-             (svg/group
-              {:key (str "gr_" i)}
-              (svg/group
-               {:key (str "gr2_" i)}
-               (for [[j r2] (map-indexed vector (range r (+ r math/SIXTH_PI) (/ math/SIXTH_PI 5)))
-                     :let   [p3 (geom/rotate (vecs/vec2 (* radius 0.95) 0) r2)
-                             p4 (geom/rotate (vecs/vec2 radius 0) r2)]]
-                 (svg/as-svg (types/->Line2 [p3 p4])
-                             {:key (str "gr_" i "_" j)})))
-              ^{:key (str "min_" i)} (svg/as-svg (types/->Line2 [p1 p2])
-                                                 {:key (str "min_" i)})
-              (svg/text (vecs/vec2 (* (:x p2) 1.12) (* (:y p2) 1.12))
-                        (mod (+ i 3) 12)
-                        {:transformorigin "0.5 0.5"
-                         :font-weight 100
-                         :stroke-width    0.5
-                         :transform       "translate(-6 4)"
-                         :stroke          "red"
-                         :key             (str "sec_text_" i)})))))
 (defn modals []
   (when-not  (empty? @(rf/subscribe [::s/modals]))
     [rc/modal-panel
@@ -277,15 +206,14 @@
          :justify :center
          :align :center
          :child [time-component (rf/subscribe [::s/time])]]
-        (when-not (nil? (rf/subscribe [::s/time]))
-          [rc/box
-           :size "auto"
-           :child
-           [:div.media
-            [clock 150
-             (rf/subscribe [::s/seconds])
-             (rf/subscribe [::s/minutes])
-             (rf/subscribe [::s/hours])]]])]]]]]])
+        [mysvg/new-clock  (rf/subscribe [::s/time])]
+        #_(when-not (nil? (rf/subscribe [::s/time]))
+           [rc/box
+            :size "auto"
+            :child
+            [:div.media
+             [clock 150
+              (rf/subscribe [::s/time])]]])]]]]]])
 
 (defn mount-components! []
   (reagent/render

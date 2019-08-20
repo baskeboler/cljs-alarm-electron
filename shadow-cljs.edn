@@ -6,10 +6,11 @@
 
  :dependencies
  [[reagent "0.8.1"]
-  ;; [org.clojure/data.xml "0.0.8"]
-  ;; [clj-tagsoup/clj-tagsoup "0.3.0"]
+  [org.clojure/data.xml "0.0.8"]
+  [instaparse "1.4.10"]
+  [clj-tagsoup/clj-tagsoup "0.3.0"]
   ;; [keybind "2.2.0"]
-  ;; [cljs-ajax "0.8.0"]
+  [cljs-ajax "0.8.0"]
   ;; [meander/delta "0.0.149"]
   [re-frame "0.10.8"]
   [clj-commons/secretary "1.2.4"]
@@ -24,7 +25,7 @@
   [day8.re-frame/tracing "0.5.1"]
   [stylefy "1.10.1"]
   [re-com "2.5.0"]
-  ;; [com.rpl/specter "1.1.2"]
+  [com.rpl/specter "1.1.2"]
   [bardo "0.1.2-SNAPSHOT"]]
 
  :nrepl {:port       9999

@@ -1,7 +1,7 @@
 (ns alarm-clock.subs
   (:require [re-frame.core :as rf]
-            [goog.date :as gdate :refer [DateTime]]))
-
+            [goog.date :as gdate :refer [DateTime]]
+            [alarm-clock.protocols :as p]))
 (defn current-time []
   (let [dt (DateTime.)]
     (+ (* 100 (. dt (getHours))) (. dt (getMinutes)))))
@@ -20,20 +20,20 @@
  ::seconds
  :<- [::time]
  (fn [time _]
-   (:seconds time)))
+   (p/get-seconds time)))
 
 (rf/reg-sub
  ::minutes
  :<- [::time]
  (fn [time _]
-   (:minutes time)))
+   (p/get-minutes time)))
 
 
 (rf/reg-sub
  ::hours
  :<- [::time]
  (fn [time _]
-   (:hours time)))
+   (p/get-hours time)))
 
 (rf/reg-sub
  ::modals

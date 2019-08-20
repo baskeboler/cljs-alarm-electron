@@ -1,10 +1,10 @@
 (ns alarm-clock.events
   (:require [re-frame.core :as rf]
-            [day8.re-frame.tracing]))
+            [day8.re-frame.tracing]
+            [goog.date :refer [DateTime]]
+            [cljs.core.async :as async :refer [go-loop <! >! timeout]]))
 (def initial-state
-  {:time             {:hours   0
-                      :minutes 0
-                      :seconds 0}
+  {:time             (goog.date/DateTime.)
    :alarm-triggered? false
    :ready?           false
    :modals           []
